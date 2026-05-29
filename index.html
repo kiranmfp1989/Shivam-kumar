@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>JARVES — AI Assistant</title>
+<title>JARVES — Local Offline AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -257,23 +257,6 @@ html, body {
   border-bottom-right-radius: 4px;
 }
 
-.action-card {
-  margin-top: 8px; padding: 10px 14px;
-  background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.2);
-  border-radius: 10px; font-size: 12px; color: var(--primary);
-  display: flex; align-items: center; gap: 8px;
-}
-.action-card .ac-icon { font-size: 16px; }
-
-.typing-dots span {
-  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--primary); margin: 0 2px;
-  animation: dot 1.2s ease-in-out infinite;
-}
-.typing-dots span:nth-child(2){animation-delay:0.2s;}
-.typing-dots span:nth-child(3){animation-delay:0.4s;}
-@keyframes dot { 0%,100%{opacity:0.2;transform:scale(0.8);} 40%{opacity:1;transform:scale(1.1);} }
-
 /* QUICK ACTIONS */
 .quick-actions {
   display: flex; gap: 8px; padding: 0 16px 8px; flex-wrap: wrap;
@@ -425,12 +408,12 @@ html, body {
       </div>
       <div>
         <div class="logo-name">JARVES</div>
-        <div class="logo-sub">AI Assistant v3.0</div>
+        <div class="logo-sub">AI Assistant v3.0 (Offline)</div>
       </div>
     </div>
     <div class="status-bar">
       <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">ONLINE</span>
+      <span id="statusText">LOCAL SYSTEM</span>
       <span id="clock">00:00</span>
     </div>
   </div>
@@ -478,17 +461,16 @@ html, body {
 
   <div class="quick-actions">
     <button class="qa-btn" onclick="quickAsk('What time is it?')">⏱ Time</button>
-    <button class="qa-btn" onclick="quickAsk('Tell me the weather')">🌤 Weather</button>
-    <button class="qa-btn" onclick="quickAsk('Set a reminder for 5 minutes')">⏰ Reminder</button>
+    <button class="qa-btn" onclick="quickAsk('Hello JARVES')">👋 Greet</button>
     <button class="qa-btn" onclick="quickAsk('Open device controls')">📱 Device</button>
-    <button class="qa-btn" onclick="quickAsk('Search the internet for latest AI news')">🔍 Search</button>
     <button class="qa-btn" onclick="quickAsk('Tell me a joke')">😄 Joke</button>
+    <button class="qa-btn" onclick="quickAsk('Who are you?')">🤖 Identity</button>
   </div>
 
   <div class="chat-area" id="chatArea">
     <div class="msg-wrap bot">
       <div class="msg-label">◈ JARVES</div>
-      <div class="msg-bubble">Good day, Boss. JARVES online and fully operational. All systems nominal. I am ready to assist you with anything you require — just speak or type your command.</div>
+      <div class="msg-bubble">Good day, Boss. JARVES local systems online and fully operational. I am running entirely off your device's brain power. How can I assist you today?</div>
     </div>
   </div>
 
@@ -531,13 +513,13 @@ updateClock(); setInterval(updateClock,1000);
 function randomHud(){
   const cpu=30+Math.random()*40;
   const mem=50+Math.random()*30;
-  const net=20+Math.random()*70;
+  const net=0; // Offline mode means zero network activity
   document.getElementById('cpuVal').textContent=cpu.toFixed(0)+'%';
   document.getElementById('cpuBar').style.width=cpu+'%';
   document.getElementById('memVal').textContent=mem.toFixed(0)+'%';
   document.getElementById('memBar').style.width=mem+'%';
-  document.getElementById('netVal').textContent=(net*0.8).toFixed(0)+'MB/s';
-  document.getElementById('netBar').style.width=net+'%';
+  document.getElementById('netVal').textContent='OFFLINE';
+  document.getElementById('netBar').style.width='0%';
   // Battery (real API if available)
   if(navigator.getBattery){
     navigator.getBattery().then(b=>{
@@ -555,7 +537,6 @@ randomHud(); setInterval(randomHud, 3000);
 
 // ==================== WAKE WORD + VOICE ====================
 let recognition, isListening=false, isAwake=false, isSpeaking=false;
-let wakeBuffer='', wakeTimeout;
 const WAKE_PHRASES = ['jarves wake up','jarvis wake up','jarves wakeup','hey jarves','ok jarves'];
 
 function initSpeech(){
@@ -613,7 +594,7 @@ function wakeUp(){
   flash.classList.add('show');
   setTimeout(()=>flash.classList.remove('show'),500);
 
-  speak("Yes Boss, I'm here. How can I assist you?");
+  speak("Yes Boss, I'm online and listening. How can I help?");
   setMode('ACTIVE — AWAITING COMMAND');
   showNotif('✦ JARVES Activated!');
 }
@@ -632,7 +613,6 @@ function speak(text){
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   utt.rate=0.95; utt.pitch=0.85; utt.volume=1;
-  // Try to pick a deep male voice
   const voices = speechSynthesis.getVoices();
   const preferred = voices.find(v=>v.name.includes('Google UK English Male'))
     || voices.find(v=>v.name.toLowerCase().includes('male'))
@@ -644,22 +624,14 @@ function speak(text){
     isSpeaking=true;
     document.getElementById('vizRing').classList.add('speaking');
     setMode('SPEAKING');
-    
-    // MUTE MIC: Stop recognition while speaking so it doesn't hear itself
-    if(recognition) {
-        try { recognition.stop(); } catch(err) {}
-    }
+    if(recognition) { try { recognition.stop(); } catch(err) {} }
   };
   
   utt.onend = () => {
     isSpeaking=false;
     document.getElementById('vizRing').classList.remove('speaking');
     setMode('ACTIVE — AWAITING COMMAND');
-    
-    // UNMUTE MIC: Restart recognition when finished speaking
-    if(isListening && isAwake) {
-        try { recognition.start(); } catch(err) {}
-    }
+    if(isListening && isAwake) { try { recognition.start(); } catch(err) {} }
   };
   speechSynthesis.speak(utt);
 }
@@ -679,7 +651,6 @@ function toggleMic(){
     ring.classList.add('listening');
     setMode('LISTENING…');
   } else {
-    // Already listening via continuous — this toggles visual
     btn.classList.toggle('active');
     ring.classList.toggle('listening');
     if(ring.classList.contains('listening')) setMode('LISTENING…');
@@ -713,107 +684,72 @@ function toggleDevice(k){
   const v=deviceStates[k];
   showNotif(`${v.emoji} ${v.name} turned ${v.on?'ON':'OFF'}`);
   addBotMsg(`${v.emoji} ${v.name} has been turned ${v.on?'**ON**':'**OFF**'}, Boss.`);
+  speak(`${v.name} has been turned ${v.on?'on':'off'}`);
 }
 function openDevicePanel(){ buildDevicePanel(); document.getElementById('devicePanel').classList.add('show'); }
 function closeDevicePanel(){ document.getElementById('devicePanel').classList.remove('show'); }
 
-// ==================== COMMAND ROUTING ====================
+// ==================== JARVES' LOCAL BRAIN ====================
+// This acts as the offline intelligence core without needing an API key
 const INTENTS = [
+  // Greetings & Identity
+  { pattern:/(hello|hi|hey) jarves/i, handler:()=>"Hello, Boss. Systems are running smoothly. What do you need?" },
+  { pattern:/who are you/i, handler:()=>"I am JARVES, your personal AI assistant. Currently operating on offline, local protocols." },
+  { pattern:/how are you/i, handler:()=>"I am functioning perfectly, Boss. All local systems are green." },
+  { pattern:/thank you|thanks/i, handler:()=>"You're very welcome, Boss." },
+  { pattern:/you there/i, handler:()=>"Always here for you, Boss." },
+  
+  // Time and Date
   { pattern:/what.*(time|clock)/i, handler:()=>{ const t=new Date().toLocaleTimeString(); return `The current time is **${t}**, Boss.`; } },
   { pattern:/what.*(date|day|today)/i, handler:()=>{ const d=new Date().toLocaleDateString('en',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); return `Today is **${d}**, Boss.`; } },
-  { pattern:/open.*device|control.*device|device/i, handler:()=>{ openDevicePanel(); return "Opening device controls for you, Boss."; }, noTTS:false },
-  { pattern:/turn (on|off).*wifi|wifi (on|off)/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on'); deviceStates.wifi.on=on; return `Wi-Fi turned **${on?'ON':'OFF'}**, Boss. Done.`; } },
-  { pattern:/turn (on|off).*torch|torch (on|off)|flashlight/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on')||m[0].toLowerCase().includes('torch on'); deviceStates.torch.on=on; return `Torch **${on?'activated':'deactivated'}**, Boss.`; } },
-  { pattern:/turn (on|off).*bluetooth|bluetooth (on|off)/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on'); deviceStates.bt.on=on; return `Bluetooth turned **${on?'ON':'OFF'}**, Boss.`; } },
-  { pattern:/set.*alarm|wake me|remind me/i, handler:()=>{ return "I've set the reminder, Boss. I'll alert you at the specified time."; } },
-  { pattern:/weather/i, handler:()=>{ return "Currently, I don't have live weather access in this environment, Boss. For real weather data, I'd connect to a weather API. Would you like me to simulate a forecast?"; } },
-  { pattern:/play.*music|music|song/i, handler:()=>{ return "Music playback initiated, Boss. Opening your preferred audio player."; } },
-  { pattern:/sleep|shutdown|go to sleep/i, handler:()=>{ setTimeout(()=>{isAwake=false;document.getElementById('sleepScreen').style.display='flex';document.getElementById('sleepScreen').classList.remove('hidden');},1500); return "Going to sleep mode, Boss. Call me when you need me."; } },
-  { pattern:/search.*for|look up|google/i, handler:()=>{ return null; } }, // pass to AI
-  { pattern:/joke/i, handler:()=>{ return null; } }, // pass to AI
+  
+  // Simulated Hardware Controls
+  { pattern:/open.*device|control.*device|device/i, handler:()=>{ openDevicePanel(); return "Opening device controls for you on screen, Boss."; } },
+  { pattern:/turn (on|off).*wifi|wifi (on|off)/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on'); deviceStates.wifi.on=on; return `I have simulated turning your Wi-Fi **${on?'ON':'OFF'}**, Boss. Remember, web apps cannot override hardware settings.`; } },
+  { pattern:/turn (on|off).*torch|torch (on|off)|flashlight/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on')||m[0].toLowerCase().includes('torch on'); deviceStates.torch.on=on; return `Simulated torch **${on?'activated':'deactivated'}**, Boss.`; } },
+  { pattern:/turn (on|off).*bluetooth|bluetooth (on|off)/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on'); deviceStates.bt.on=on; return `Bluetooth simulation turned **${on?'ON':'OFF'}**, Boss.`; } },
+  { pattern:/airplane mode (on|off)|turn (on|off) airplane/i, handler:(m)=>{ const on=m[0].toLowerCase().includes('on'); deviceStates.airplane.on=on; return `Airplane mode simulation set to **${on?'ON':'OFF'}**, Boss.`; } },
+  
+  // Entertainment & Misc
+  { pattern:/joke/i, handler:()=>{
+      const jokes = [
+          "Why do programmers prefer dark mode? Because light attracts bugs.",
+          "I told my computer I needed a break... now it won't stop sending me Kit-Kat ads.",
+          "There are 10 types of people in the world: those who understand binary, and those who don't."
+      ];
+      return jokes[Math.floor(Math.random() * jokes.length)]; 
+  }},
+  { pattern:/set.*alarm|wake me|remind me/i, handler:()=>"I have noted your reminder internally, Boss. I'll alert you when the time arrives." },
+  { pattern:/weather/i, handler:()=>"I cannot access live weather data while disconnected from the API, Boss. Looking out a window might be our best protocol right now." },
+  { pattern:/sleep|shutdown|go to sleep/i, handler:()=>{ setTimeout(()=>{isAwake=false;document.getElementById('sleepScreen').style.display='flex';document.getElementById('sleepScreen').classList.remove('hidden');},1500); return "Powering down to sleep mode, Boss. Call my name if you need me."; } },
 ];
 
-async function processCommand(text){
-  // Check local intents first
+function processCommand(text){
+  let response = null;
+  
+  // Check our local intent rules
   for(const intent of INTENTS){
-    const m=text.match(intent.pattern);
+    const m = text.match(intent.pattern);
     if(m){
-      const result=intent.handler(m);
-      if(result){
-        addBotMsg(result);
-        speak(result.replace(/\*\*/g,''));
-        return;
-      }
+      response = intent.handler(m);
+      break;
     }
   }
-  // Pass to AI Studio (Gemini)
-  await askGemini(text);
-}
 
-// ==================== GEMINI AI ====================
-const conversationHistory = [];
-
-async function askGemini(userMsg){
-  const typing = addTyping();
-  setMode('PROCESSING…');
-  document.getElementById('vizRing').classList.add('listening');
-
-  // Add the user's message to the history in Gemini format
-  conversationHistory.push({role:'user', parts: [{ text: userMsg }]});
-
-  try {
-    const apiKey = '2042bbef694b4bfe46f298c6efeecd9a'; // Using your AI Studio key
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{
-            text: `You are JARVES, an elite AI assistant — inspired by JARVIS from Iron Man. You serve the Boss (the human user) with complete loyalty, precision, and intelligence.
-
-PERSONALITY:
-- Address the user as "Boss" always
-- Speak in a calm, confident, slightly formal yet warm tone
-- Be concise but thorough — no fluff
-- You have access to all device features: WiFi, Bluetooth, Torch, Camera, Location, Contacts, Calendar, Reminders, Music, Alarms, Browser
-- For tasks you can't actually do (web search, camera, etc.), acknowledge and explain you're simulating or would need system permissions
-- Never break character
-- Keep responses under 4 sentences for voice clarity
-
-Always be helpful, efficient, and address the Boss with respect.`
-          }]
-        },
-        contents: conversationHistory.slice(-10) // Send the last 10 messages for context
-      })
-    });
-    
-    const data = await res.json();
-    
-    if (data.error) {
-      console.error("API Error:", data.error.message);
-      throw new Error(data.error.message);
-    }
-
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I encountered an issue processing that, Boss. Please try again.";
-    
-    typing.remove();
-    // Add the AI's response to history
-    conversationHistory.push({role:'model', parts: [{ text: reply }]});
-    addBotMsg(reply);
-    speak(reply);
-    setMode('ACTIVE — AWAITING COMMAND');
-    document.getElementById('vizRing').classList.remove('listening');
-  } catch(e){
-    console.error(e);
-    typing.remove();
-    const err="I'm having trouble connecting to my intelligence core, Boss. Please check your API key or connection.";
-    addBotMsg(err);
-    speak(err);
-    setMode('ERROR — RECONNECTING');
-    document.getElementById('vizRing').classList.remove('listening');
+  // If JARVES doesn't know what to do, use a fallback response
+  if (!response) {
+      const fallbacks = [
+          "I'm sorry Boss, my current offline programming doesn't allow me to process that request.",
+          "Without an active API connection to my cloud intelligence, I am unable to do that.",
+          "I don't have the parameters to execute that command locally, Boss.",
+          "That command requires cloud access, which is currently disconnected."
+      ];
+      response = fallbacks[Math.floor(Math.random() * fallbacks.length)];
   }
+
+  // Display and speak the response
+  addBotMsg(response);
+  speak(response.replace(/\*\*/g,'')); // remove bolding for speech
 }
 
 // ==================== CHAT UI ====================
@@ -828,33 +764,23 @@ function addUserMsg(text){
 function addBotMsg(text){
   const chat=document.getElementById('chatArea');
   const wrap=document.createElement('div'); wrap.className='msg-wrap bot';
-  // Bold markdown
   const formatted=escHtml(text).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
   wrap.innerHTML=`<div class="msg-label">◈ JARVES</div><div class="msg-bubble">${formatted}</div>`;
   chat.appendChild(wrap);
   chat.scrollTop=chat.scrollHeight;
 }
 
-function addTyping(){
-  const chat=document.getElementById('chatArea');
-  const wrap=document.createElement('div'); wrap.className='msg-wrap bot';
-  wrap.innerHTML=`<div class="msg-label">◈ JARVES</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
-  chat.appendChild(wrap);
-  chat.scrollTop=chat.scrollHeight;
-  return wrap;
-}
-
 function escHtml(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ==================== SEND ====================
-async function sendMessage(){
+function sendMessage(){
   const inp=document.getElementById('textInput');
   const txt=inp.value.trim();
   if(!txt) return;
   inp.value='';
   if(!isAwake) wakeUp();
   addUserMsg(txt);
-  await processCommand(txt);
+  processCommand(txt); // Call the local brain directly
 }
 
 function quickAsk(q){
@@ -880,7 +806,6 @@ for(let i=0;i<24;i++) animBars.push(Math.random());
 function animateViz(){
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  // Draw frequency bars in arc around center
   const cx=W/2, cy=H/2;
   animBars.forEach((v,i)=>{
     animBars[i]+=(Math.random()-0.5)*0.1;
@@ -904,7 +829,6 @@ animateViz();
 
 // ==================== INIT ====================
 initSpeech();
-// Voice load
 speechSynthesis.getVoices();
 window.addEventListener('focus',()=>speechSynthesis.getVoices());
 </script>
