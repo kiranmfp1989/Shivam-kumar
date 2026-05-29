@@ -257,7 +257,7 @@ html, body {
   border-bottom-right-radius: 4px;
 }
 
-/* ADDED MISSING TYPING ANIMATION CSS */
+/* TYPING ANIMATION CSS */
 .typing-dots {
   display: flex; gap: 4px; padding: 4px; justify-content: center; align-items: center;
 }
@@ -423,7 +423,7 @@ html, body {
       </div>
       <div>
         <div class="logo-name">JARVES</div>
-        <div class="logo-sub">Connected to AI Core</div>
+        <div class="logo-sub">Connected to Groq Core</div>
       </div>
     </div>
     <div class="status-bar">
@@ -484,7 +484,7 @@ html, body {
   <div class="chat-area" id="chatArea">
     <div class="msg-wrap bot">
       <div class="msg-label">◈ JARVES</div>
-      <div class="msg-bubble">Good day, Boss. I am connected to the Gemini AI core and fully operational. How can I assist you today?</div>
+      <div class="msg-bubble">Good day, Boss. I am connected to the Groq AI core and fully operational. How can I assist you today?</div>
     </div>
   </div>
 
@@ -714,55 +714,56 @@ async function processCommand(text){
       }
     }
   }
-  // Send everything else to the Gemini AI Server
-  await askGemini(text);
+  // Send everything else to the Groq AI Server
+  await askGroq(text);
 }
 
-// ==================== GEMINI AI ====================
+// ==================== GROQ AI INTEGRATION ====================
 const conversationHistory = [];
 
-async function askGemini(userMsg){
+async function askGroq(userMsg){
   const typing = addTyping();
   setMode('PROCESSING…');
   document.getElementById('vizRing').classList.add('listening');
 
-  conversationHistory.push({role:'user', parts: [{ text: userMsg }]});
+  // Push user message in OpenAI format
+  conversationHistory.push({role:'user', content: userMsg});
 
   try {
-    // ⚠️ REPLACE THIS STRING WITH YOUR ACTUAL GEMINI API KEY! ⚠️
-    // Get a free key at: https://aistudio.google.com/app/apikey
-    const apiKey = 'YOUR_API_KEY_HERE'; 
-    
-    // Using the Gemini 1.5 Flash endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const apiKey = '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'; 
+    const url = `https://api.groq.com/openai/v1/chat/completions`;
+
+    // System prompt combined with recent history for context
+    const messages = [
+      { role: 'system', content: 'You are JARVES, an elite AI assistant. You serve the Boss (the user). Keep your answers brief, confident, and spoken like a helpful AI.' },
+      ...conversationHistory.slice(-10) // Limit memory to last 10 messages
+    ];
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{
-            text: `You are JARVES, an elite AI assistant. You serve the Boss (the user). Keep your answers brief, confident, and spoken like a helpful AI.`
-          }]
-        },
-        contents: conversationHistory.slice(-10) // Sends the last 10 messages for memory
+        model: 'llama3-8b-8192', // Super-fast Llama 3 model hosted on Groq
+        messages: messages
       })
     });
     
     const data = await res.json();
     typing.remove();
 
-    // Catch API errors (like an invalid key)
     if (data.error) throw new Error(data.error.message);
 
-    // FIXED: Safely check if the API responded or was blocked by safety settings
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Parse the OpenAI format response
+    const reply = data.choices?.[0]?.message?.content;
     
     if (!reply) {
       throw new Error("Received an empty or blocked response from the AI core.");
     }
 
-    conversationHistory.push({role:'model', parts: [{ text: reply }]});
+    conversationHistory.push({role:'assistant', content: reply});
     addBotMsg(reply);
     speak(reply);
     
@@ -771,7 +772,7 @@ async function askGemini(userMsg){
   } catch(e){
     console.error(e);
     if(document.body.contains(typing)) typing.remove();
-    const err = "I am having trouble connecting to the cloud, Boss. Please check the console or ensure your API key is valid.";
+    const err = "I am having trouble connecting to the Groq cloud, Boss. Please check your internet connection.";
     addBotMsg(err);
     speak(err);
     setMode('API ERROR');
