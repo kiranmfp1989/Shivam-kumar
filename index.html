@@ -749,7 +749,66 @@ async function askGroq(userMsg){
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "llama3-8b-8192", // Using Groq's high-speed Llama 3 model
+        model: "llama-3.1-8b-instant", // Updated to the currently supported Groq model
+        messages: payloadMessages
+      })
+    });
+    
+    const data = await res.json();
+    typing.remove();
+
+    if (data.error) throw new Error(data.error.message);
+
+    const reply = data.choices?.[0]?.message?.content;
+    
+    if (!reply) {
+      throw new Error("Received an empty or blocked response from the AI core.");
+    }
+
+    // Push the assistant response to history
+    conversationHistory.push({ role: 'assistant', content: reply });
+    
+    addBotMsg(reply);
+    speak(reply);
+    
+    setMode('ACTIVE — AWAITING COMMAND');
+    document.getElementById('vizRing').classList.remove('listening');
+  } catch(e){
+    console.error(e);
+    if(document.body.contains(typing)) typing.remove();
+    const err = "I am having trouble connecting to the cloud, Boss. Please check the console or ensure your API key is valid.";
+    addBotMsg(err);
+    speak(err);
+    setMode('API ERROR');
+    document.getElementById('vizRing').classList.remove('listening');
+  }
+}
+
+
+  // Push user message using standard OpenAI/Groq format
+  conversationHistory.push({ role: 'user', content: userMsg });
+
+  try {
+    const apiKey = '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'; 
+    const url = `https://api.groq.com/openai/v1/chat/completions`;
+
+    // Package the system prompt with the history
+    const payloadMessages = [
+      {
+        role: "system",
+        content: "You are JARVES, an elite AI assistant. You serve the Boss (the user). Keep your answers brief, confident, and spoken like a helpful AI."
+      },
+      ...conversationHistory.slice(-10) // Keep the last 10 messages
+    ];
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant", // Using Groq's high-speed Llama 3 model
         messages: payloadMessages
       })
     });
